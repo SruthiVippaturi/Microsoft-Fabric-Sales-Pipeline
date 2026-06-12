@@ -1,0 +1,1655 @@
+{
+    "name": "PI_Product",
+    "objectId": "e4659def-7bf7-4c2c-bb94-6d0d1de3985d",
+    "properties": {
+        "activities": [
+            {
+                "name": "Audit_log",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "storedProcedureName": "[dbo].[insertplrunlog]",
+                    "storedProcedureParameters": {
+                        "PipelineRunId": {
+                            "value": {
+                                "value": "@pipeline().RunId",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "PipelineId": {
+                            "value": {
+                                "value": "@pipeline().Pipeline",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "StartTimeUTC": {
+                            "value": {
+                                "value": "@pipeline().TriggerTime",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "EndTimeUTC": {
+                            "value": null,
+                            "type": "String"
+                        },
+                        "WorkspaceId": {
+                            "value": {
+                                "value": "@pipeline().DataFactory",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "PipelineTriggerId": {
+                            "value": {
+                                "value": "@pipeline().TriggerId",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "ParentPipelineRunId": {
+                            "value": {
+                                "value": "@pipeline().RunId",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "PipelineCompletedSuccessfully": {
+                            "value": null,
+                            "type": "Int16"
+                        },
+                        "Process": {
+                            "value": {
+                                "value": "@concat('Pipeline to  ingest daily','Feed')",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "Pipeline_name": {
+                            "value": {
+                                "value": "@pipeline().PipelineName",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        }
+                    }
+                },
+                "connectionSettings": {
+                    "name": "156b1b4a_a00f_477d_a981_61f7fc0caf4e",
+                    "properties": {
+                        "annotations": [],
+                        "type": "DataWarehouse",
+                        "typeProperties": {
+                            "endpoint": "@pipeline().libraryVariables.vl_sqlendpoint",
+                            "artifactId": "@pipeline().libraryVariables.vl_audit_warehouse_id",
+                            "workspaceId": "@pipeline().libraryVariables.vl_workspace_id"
+                        },
+                        "externalReferences": {
+                            "connection": "@pipeline().libraryVariables.vl_conn_string_warehouse"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "TodayStart",
+                "description": "dateyyyyMMdd",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "Audit_log",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "variableName": "v_today_start",
+                    "value": {
+                        "value": "@formatDateTime(addDays(utcNow(),int(pipeline().parameters.p_days_offset)), 'yyyyMMdd')",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "Check_File",
+                "type": "GetMetadata",
+                "dependsOn": [
+                    {
+                        "activity": "TodayStart",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "fieldList": [
+                        "childItems"
+                    ],
+                    "datasetSettings": {
+                        "annotations": [],
+                        "connectionSettings": {
+                            "name": "5839c7fe_3e78_4b05_92e0_dbad134178fd",
+                            "properties": {
+                                "annotations": [],
+                                "type": "Lakehouse",
+                                "typeProperties": {
+                                    "workspaceId": "@pipeline().libraryVariables.vl_workspace_id",
+                                    "artifactId": "@pipeline().libraryVariables.vl_source_lakehouse_id",
+                                    "rootFolder": "Files"
+                                },
+                                "externalReferences": {
+                                    "connection": "@pipeline().libraryVariables.vl_conn_string_lakehouse"
+                                }
+                            }
+                        },
+                        "type": "Binary",
+                        "typeProperties": {
+                            "location": {
+                                "type": "LakehouseLocation",
+                                "fileName": {
+                                    "value": "@concat(pipeline().libraryVariables.vl_File_name,variables('v_today_start'),'*')",
+                                    "type": "Expression"
+                                },
+                                "folderPath": {
+                                    "value": "@pipeline().libraryVariables.vl_Source_Path",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    },
+                    "storeSettings": {
+                        "type": "AzureBlobStorageReadSettings",
+                        "recursive": true,
+                        "enablePartitionDiscovery": false
+                    },
+                    "formatSettings": {
+                        "type": "BinaryReadSettings"
+                    }
+                }
+            },
+            {
+                "name": "file_count",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "Check_File",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "variableName": "v_Filecount",
+                    "value": {
+                        "value": "@length(activity('Check_File').output.childItems)",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "Check_Filecnt",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "file_count",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@not(equals(variables('v_Filecount'),1))",
+                        "type": "Expression"
+                    },
+                    "ifFalseActivities": [
+                        {
+                            "name": "Processed_File_Check",
+                            "description": "File has already processd",
+                            "type": "Lookup",
+                            "dependsOn": [],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "source": {
+                                    "type": "DataWarehouseSource",
+                                    "sqlReaderQuery": {
+                                        "value": "@concat(\n  'select count(0) as cnt from dbo.audit_file_run where PipelineStatus=''Completed'' And FileName=''', \n  activity('Check_File').output.childItems[0].name,\n  ''''\n)\n",
+                                        "type": "Expression"
+                                    },
+                                    "queryTimeout": "02:00:00",
+                                    "partitionOption": "None"
+                                },
+                                "datasetSettings": {
+                                    "annotations": [],
+                                    "connectionSettings": {
+                                        "name": "8b78e6e2_f70a_4a40_a932_5f82f7be38c7",
+                                        "properties": {
+                                            "annotations": [],
+                                            "type": "DataWarehouse",
+                                            "typeProperties": {
+                                                "endpoint": "@pipeline().libraryVariables.vl_sqlendpoint",
+                                                "artifactId": "@pipeline().libraryVariables.vl_audit_warehouse_id",
+                                                "workspaceId": "519f8648-7081-40b9-8281-fff5f7e0b555"
+                                            },
+                                            "externalReferences": {
+                                                "connection": "@pipeline().libraryVariables.vl_conn_string_warehouse"
+                                            }
+                                        }
+                                    },
+                                    "type": "DataWarehouseTable",
+                                    "schema": []
+                                }
+                            }
+                        }
+                    ],
+                    "ifTrueActivities": [
+                        {
+                            "name": "File_count_chk",
+                            "type": "Fail",
+                            "dependsOn": [],
+                            "typeProperties": {
+                                "message": {
+                                    "value": "@concat(pipeline().libraryVariables.file_ext,'more than 1 file peesent in source:',pipeline().libraryVariables.vl_File_name)",
+                                    "type": "Expression"
+                                },
+                                "errorCode": {
+                                    "value": "Multiple files found or no file available",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "chk_alreadyProcessed",
+                "type": "IfCondition",
+                "dependsOn": [
+                    {
+                        "activity": "Check_Filecnt",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "expression": {
+                        "value": "@greater(int(activity('Processed_File_Check').output.firstRow.CNT),\n  0)\n\n",
+                        "type": "Expression"
+                    },
+                    "ifFalseActivities": [
+                        {
+                            "name": "filenameYYMM",
+                            "description": "Extract the month and year from the filename (YYMM)",
+                            "type": "SetVariable",
+                            "dependsOn": [],
+                            "policy": {
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "variableName": "v_yearMonth",
+                                "value": {
+                                    "value": "@substring(activity('Check_File').output.childItems[0].name,add(length(pipeline().libraryVariables.vl_File_name),0),\n  6)\n",
+                                    "type": "Expression"
+                                }
+                            }
+                        },
+                        {
+                            "name": "filename",
+                            "type": "SetVariable",
+                            "dependsOn": [],
+                            "policy": {
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "variableName": "v_Filename",
+                                "value": {
+                                    "value": "@substring(activity('Check_File').output.childItems[0].name,0,length(pipeline().libraryVariables.vl_File_name))\n",
+                                    "type": "Expression"
+                                }
+                            }
+                        },
+                        {
+                            "name": "filepath",
+                            "description": "Full file name from the file",
+                            "type": "SetVariable",
+                            "dependsOn": [],
+                            "policy": {
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "variableName": "v_FullFilename",
+                                "value": {
+                                    "value": "@activity('Check_File').output.childItems[0].name",
+                                    "type": "Expression"
+                                }
+                            }
+                        },
+                        {
+                            "name": "filedate",
+                            "description": "Extract the date (yyyymdd) from the filename",
+                            "type": "SetVariable",
+                            "dependsOn": [],
+                            "policy": {
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "variableName": "v_date",
+                                "value": {
+                                    "value": "@substring(activity('Check_File').output.childItems[0].name,add(length(pipeline().libraryVariables.vl_File_name),0),\n  8)\n",
+                                    "type": "Expression"
+                                }
+                            }
+                        },
+                        {
+                            "name": "Script1",
+                            "type": "Script",
+                            "dependsOn": [
+                                {
+                                    "activity": "filenameYYMM",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                },
+                                {
+                                    "activity": "filename",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                },
+                                {
+                                    "activity": "filepath",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                },
+                                {
+                                    "activity": "filedate",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "connectionSettings": {
+                                "name": "00401cd9_5056_4752_9c69_e5cfc3f7cf16",
+                                "properties": {
+                                    "annotations": [],
+                                    "type": "DataWarehouse",
+                                    "typeProperties": {
+                                        "endpoint": "@pipeline().libraryVariables.vl_sqlendpoint",
+                                        "artifactId": "@pipeline().libraryVariables.vl_audit_warehouse_id",
+                                        "workspaceId": "@pipeline().libraryVariables.vl_workspace_id"
+                                    },
+                                    "externalReferences": {
+                                        "connection": "@pipeline().libraryVariables.vl_conn_string_warehouse"
+                                    }
+                                }
+                            },
+                            "typeProperties": {
+                                "scripts": [
+                                    {
+                                        "type": "Query",
+                                        "text": {
+                                            "value": "@concat(\n'INSERT INTO [dbo].[audit_file_run] VALUES (''',\npipeline().RunId, ''',''',\npipeline().PipelineName, ''',''',\nactivity('Check_File').output.childItems[0].name, ''',''',\nutcNow(), ''',',\n'NULL, ''',\npipeline().DataFactory, ''',''',\n'In Progress'',''Ingestion'',''',\nvariables('v_date'), ''',''',\n'YET TO START'',',\n'NULL, NULL)'\n)\n",
+                                            "type": "Expression"
+                                        }
+                                    }
+                                ],
+                                "scriptBlockExecutionTimeout": "02:00:00"
+                            }
+                        },
+                        {
+                            "name": "F1_01_check_file",
+                            "description": "For fail return error and code",
+                            "type": "Fail",
+                            "dependsOn": [
+                                {
+                                    "activity": "filenameYYMM",
+                                    "dependencyConditions": [
+                                        "Failed"
+                                    ]
+                                },
+                                {
+                                    "activity": "filename",
+                                    "dependencyConditions": [
+                                        "Failed"
+                                    ]
+                                },
+                                {
+                                    "activity": "filepath",
+                                    "dependencyConditions": [
+                                        "Failed"
+                                    ]
+                                },
+                                {
+                                    "activity": "filedate",
+                                    "dependencyConditions": [
+                                        "Failed"
+                                    ]
+                                }
+                            ],
+                            "typeProperties": {
+                                "message": {
+                                    "value": "@concat(pipeline().libraryVariables.vl_File_name,'-nofile found')",
+                                    "type": "Expression"
+                                },
+                                "errorCode": {
+                                    "value": "@concat('Check_File-',pipeline().libraryVariables.vl_File_name)",
+                                    "type": "Expression"
+                                }
+                            }
+                        },
+                        {
+                            "name": "Cd_01_lhb",
+                            "description": "move csv bolb to  lakehouse bronze",
+                            "type": "Copy",
+                            "dependsOn": [
+                                {
+                                    "activity": "Script1",
+                                    "dependencyConditions": [
+                                        "Succeeded"
+                                    ]
+                                }
+                            ],
+                            "policy": {
+                                "timeout": "0.12:00:00",
+                                "retry": 0,
+                                "retryIntervalInSeconds": 30,
+                                "secureOutput": false,
+                                "secureInput": false
+                            },
+                            "typeProperties": {
+                                "source": {
+                                    "type": "DelimitedTextSource",
+                                    "storeSettings": {
+                                        "type": "LakehouseReadSettings",
+                                        "recursive": true,
+                                        "enablePartitionDiscovery": false
+                                    },
+                                    "formatSettings": {
+                                        "type": "DelimitedTextReadSettings"
+                                    },
+                                    "datasetSettings": {
+                                        "annotations": [],
+                                        "connectionSettings": {
+                                            "name": "20ae99f8_679c_4e85_8da0_6332342f5b8e",
+                                            "properties": {
+                                                "annotations": [],
+                                                "type": "Lakehouse",
+                                                "typeProperties": {
+                                                    "workspaceId": "@pipeline().libraryVariables.vl_workspace_id",
+                                                    "artifactId": "@pipeline().libraryVariables.vl_source_lakehouse_id",
+                                                    "rootFolder": "Files"
+                                                },
+                                                "externalReferences": {
+                                                    "connection": "@pipeline().libraryVariables.vl_conn_string_lakehouse"
+                                                }
+                                            }
+                                        },
+                                        "type": "DelimitedText",
+                                        "typeProperties": {
+                                            "location": {
+                                                "type": "LakehouseLocation",
+                                                "fileName": {
+                                                    "value": "@variables('v_FullFilename')",
+                                                    "type": "Expression"
+                                                },
+                                                "folderPath": {
+                                                    "value": "@pipeline().libraryVariables.vl_Source_Path",
+                                                    "type": "Expression"
+                                                }
+                                            },
+                                            "columnDelimiter": ",",
+                                            "escapeChar": "\\",
+                                            "firstRowAsHeader": true,
+                                            "quoteChar": "\""
+                                        },
+                                        "schema": []
+                                    }
+                                },
+                                "sink": {
+                                    "type": "DelimitedTextSink",
+                                    "storeSettings": {
+                                        "type": "LakehouseWriteSettings"
+                                    },
+                                    "formatSettings": {
+                                        "type": "DelimitedTextWriteSettings",
+                                        "fileExtension": ".txt"
+                                    },
+                                    "datasetSettings": {
+                                        "annotations": [],
+                                        "connectionSettings": {
+                                            "name": "50d661eb_b9cb_4e8a_b302_01234766d63d",
+                                            "properties": {
+                                                "annotations": [],
+                                                "type": "Lakehouse",
+                                                "typeProperties": {
+                                                    "workspaceId": "@pipeline().libraryVariables.vl_workspace_id",
+                                                    "artifactId": "@pipeline().libraryVariables.vl_bronze_lakehouse_id",
+                                                    "rootFolder": "Files"
+                                                },
+                                                "externalReferences": {
+                                                    "connection": "@pipeline().libraryVariables.vl_conn_string_lakehouse"
+                                                }
+                                            }
+                                        },
+                                        "type": "DelimitedText",
+                                        "typeProperties": {
+                                            "location": {
+                                                "type": "LakehouseLocation",
+                                                "fileName": {
+                                                    "value": "@variables('v_FullFilename')",
+                                                    "type": "Expression"
+                                                },
+                                                "folderPath": {
+                                                    "value": "@concat(pipeline().libraryVariables.vl_Product,'/',pipeline().libraryVariables.vl_feed,'/',variables('v_yearMonth'))",
+                                                    "type": "Expression"
+                                                }
+                                            },
+                                            "columnDelimiter": ",",
+                                            "escapeChar": "\\",
+                                            "firstRowAsHeader": true,
+                                            "quoteChar": "\""
+                                        },
+                                        "schema": []
+                                    }
+                                },
+                                "enableStaging": false,
+                                "translator": {
+                                    "type": "TabularTranslator",
+                                    "typeConversion": true,
+                                    "typeConversionSettings": {
+                                        "allowDataTruncation": true,
+                                        "treatBooleanAsNumber": false
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "name": "fl_02_validate_cf",
+                            "description": "fail_message",
+                            "type": "Fail",
+                            "dependsOn": [
+                                {
+                                    "activity": "Cd_01_lhb",
+                                    "dependencyConditions": [
+                                        "Failed"
+                                    ]
+                                }
+                            ],
+                            "typeProperties": {
+                                "message": {
+                                    "value": "@activity('Cd_01_lhb').output.error.message",
+                                    "type": "Expression"
+                                },
+                                "errorCode": {
+                                    "value": "@activity('Cd_01_lhb').output.error.errorCode",
+                                    "type": "Expression"
+                                }
+                            }
+                        },
+                        {
+                            "name": "Fl_03_InsertaAudit",
+                            "description": "Insert audit Fail Message",
+                            "type": "Fail",
+                            "dependsOn": [
+                                {
+                                    "activity": "Script1",
+                                    "dependencyConditions": [
+                                        "Failed"
+                                    ]
+                                }
+                            ],
+                            "typeProperties": {
+                                "message": {
+                                    "value": "@concat(activity('Check_File').output.childItems,\n'Insert to Audit_File_Run_Failed')",
+                                    "type": "Expression"
+                                },
+                                "errorCode": {
+                                    "value": "Insert Statement Audit_File_Run_Failed",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    ],
+                    "ifTrueActivities": [
+                        {
+                            "name": "File_Processed",
+                            "type": "Fail",
+                            "dependsOn": [],
+                            "typeProperties": {
+                                "message": {
+                                    "value": "@concat(\n  'File ',\n  activity('Check_File').output.childItems[0].name,\n  ' File_Processed'\n)\n",
+                                    "type": "Expression"
+                                },
+                                "errorCode": {
+                                    "value": "File_Processed",
+                                    "type": "Expression"
+                                }
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "nb_schema_validation",
+                "description": "code to check Schema",
+                "type": "TridentNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "sv_05_FilePath",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "notebookId": {
+                        "value": "@pipeline().libraryVariables.vl_nbb_schema",
+                        "type": "Expression"
+                    },
+                    "workspaceId": {
+                        "value": "@pipeline().libraryVariables.vl_workspace_id",
+                        "type": "Expression"
+                    },
+                    "parameters": {
+                        "NB_fullFilepath": {
+                            "value": {
+                                "value": "@variables('v_fullpath_string')",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "schema_path": {
+                            "value": {
+                                "value": "@pipeline().libraryVariables.vl_schema_path",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "schema_file_name": {
+                            "value": {
+                                "value": "@pipeline().libraryVariables.vl_schema_file_name",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "bronze_lakehouse_id": {
+                            "value": {
+                                "value": "@pipeline().libraryVariables.vl_bronze_lakehouse_id",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "bronze_workspace_id": {
+                            "value": {
+                                "value": "@pipeline().libraryVariables.vl_workspace_id",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "file_ext": {
+                            "value": {
+                                "value": "@pipeline().libraryVariables.file_ext",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "ims_nb_transformed",
+                "description": "loading the file from parquet",
+                "type": "TridentNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "nb_schema_validation",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "notebookId": {
+                        "value": "@pipeline().libraryVariables.vl_nbs_transformed",
+                        "type": "Expression"
+                    },
+                    "workspaceId": {
+                        "value": "@pipeline().libraryVariables.vl_workspace_id",
+                        "type": "Expression"
+                    },
+                    "parameters": {
+                        "transformed_table_name": {
+                            "value": {
+                                "value": "@concat(toLower(pipeline().libraryVariables.vl_target_table_name),'_transformed')",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "folder_path": {
+                            "value": {
+                                "value": "@concat('Files/',pipeline().libraryVariables.vl_Product,'/',pipeline().libraryVariables.vl_feed,'/',variables('v_yearMonth'))",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "source_file": {
+                            "value": {
+                                "value": "@variables('v_FullFilename')",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "bronze_lakehouse_id": {
+                            "value": {
+                                "value": "@pipeline().libraryVariables.vl_bronze_lakehouse_id",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "silver_lakehouse_id": {
+                            "value": {
+                                "value": "@pipeline().libraryVariables.vl_silver_lakehouse_id",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "bronze_workspace_id": {
+                            "value": {
+                                "value": "@pipeline().libraryVariables.vl_workspace_id",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "silver_workspace_id": {
+                            "value": {
+                                "value": "@pipeline().libraryVariables.vl_workspace_id",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "schema_path": {
+                            "value": {
+                                "value": "@pipeline().libraryVariables.vl_schema_path",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "schema_file_name": {
+                            "value": {
+                                "value": "@pipeline().libraryVariables.vl_schema_file_name",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        },
+                        "silver_lakehouse_name": {
+                            "value": {
+                                "value": "@pipeline().libraryVariables.vl_silver_lakehouse_name",
+                                "type": "Expression"
+                            },
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "nbb_Warehouse",
+                "type": "TridentNotebook",
+                "dependsOn": [
+                    {
+                        "activity": "ims_nb_transformed",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "notebookId": {
+                        "value": "@pipeline().libraryVariables.vl_nbs_warehouse",
+                        "type": "Expression"
+                    },
+                    "workspaceId": {
+                        "value": "@pipeline().libraryVariables.vl_workspace_id",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "fl_Schema_validation",
+                "type": "Fail",
+                "dependsOn": [
+                    {
+                        "activity": "nb_schema_validation",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "message": {
+                        "value": "@concat('Schema for',pipeline().libraryVariables.vl_File_name,\r\n'does not match')",
+                        "type": "Expression"
+                    },
+                    "errorCode": "Schema Mismatch"
+                }
+            },
+            {
+                "name": "f2_transformed",
+                "type": "Fail",
+                "dependsOn": [
+                    {
+                        "activity": "ims_nb_transformed",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "message": {
+                        "value": "@concat('Transform to Parquet Notebook for ',pipeline().libraryVariables.vl_File_name,' error')",
+                        "type": "Expression"
+                    },
+                    "errorCode": {
+                        "value": "transformparqueterror",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "sp_03_Errror",
+                "description": "Stored Proc to write outcomes to audit log",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [
+                    {
+                        "activity": "fl_Schema_validation",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "storedProcedureName": "[dbo].[errorlog]",
+                    "storedProcedureParameters": {
+                        "PipelineRunId": {
+                            "value": {
+                                "value": "@pipeline().RunId",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "ActivityName": {
+                            "value": {
+                                "value": "@activity('fl_Schema_validation')",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "ErrorMessage": {
+                            "value": {
+                                "value": "@activity('fl_Schema_validation').output.Message",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "ErrorCode": {
+                            "value": {
+                                "value": "@activity('fl_Schema_validation').output.errorCode",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "Detail": {
+                            "value": {
+                                "value": "@concat('Env: ',pipeline().libraryVariables.vl_env,' / Product:',pipeline().libraryVariables.vl_Product,' / File:',pipeline().libraryVariables.vl_File_name,' / Feed:',pipeline().libraryVariables.vl_feed,' / FileDate: ',variables('v_today_start'),' / FileExt: ',pipeline().libraryVariables.file_ext,' / SourceLocation: ',pipeline().libraryVariables.vl_Source_Path)",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "Time_stamp": {
+                            "value": {
+                                "value": "@utcNow()",
+                                "type": "Expression"
+                            },
+                            "type": "Datetime"
+                        },
+                        "Pipeline_name": {
+                            "value": {
+                                "value": "@pipeline().PipelineName",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        }
+                    }
+                },
+                "connectionSettings": {
+                    "name": "f2a66419_e404_4526_acb1_065d7c12ed86",
+                    "properties": {
+                        "annotations": [],
+                        "type": "DataWarehouse",
+                        "typeProperties": {
+                            "endpoint": "@pipeline().libraryVariables.vl_sqlendpoint",
+                            "artifactId": "@pipeline().libraryVariables.vl_audit_warehouse_id",
+                            "workspaceId": "@pipeline().libraryVariables.vl_workspace_id"
+                        },
+                        "externalReferences": {
+                            "connection": "@pipeline().libraryVariables.vl_conn_string_warehouse"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "sp_04_Error_pipiline_log",
+                "description": "stored proc to write outcome to audit log",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [
+                    {
+                        "activity": "f2_transformed",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "storedProcedureName": "[dbo].[errorlog]",
+                    "storedProcedureParameters": {
+                        "ActivityName": {
+                            "value": {
+                                "value": "@activity('f2_transformed')",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "Detail": {
+                            "value": {
+                                "value": "@concat('Env: ',pipeline().libraryVariables.vl_env,' / Product:',pipeline().libraryVariables.vl_Product,' / File:',pipeline().libraryVariables.vl_File_name,' / Feed:',pipeline().libraryVariables.vl_feed,' / FileDate: ',variables('v_today_start'),' / FileExt: ',pipeline().libraryVariables.file_ext,' / SourceLocation: ',pipeline().libraryVariables.vl_Source_Path)",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "ErrorCode": {
+                            "value": {
+                                "value": "@activity('f2_transformed').output.errorCode",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "ErrorMessage": {
+                            "value": {
+                                "value": "@activity('f2_transformed').output.Message",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "PipelineRunId": {
+                            "value": {
+                                "value": "@pipeline().RunId",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "Time_stamp": {
+                            "value": {
+                                "value": "@utcNow()",
+                                "type": "Expression"
+                            },
+                            "type": "Datetime"
+                        },
+                        "Pipeline_name": {
+                            "value": {
+                                "value": "@pipeline().PipelineName",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        }
+                    }
+                },
+                "connectionSettings": {
+                    "name": "3b4b63ff_e883_4237_9453_f97a44fcfbae",
+                    "properties": {
+                        "annotations": [],
+                        "type": "DataWarehouse",
+                        "typeProperties": {
+                            "endpoint": "@pipeline().libraryVariables.vl_sqlendpoint",
+                            "artifactId": "@pipeline().libraryVariables.vl_audit_warehouse_id",
+                            "workspaceId": "@pipeline().libraryVariables.vl_workspace_id"
+                        },
+                        "externalReferences": {
+                            "connection": "@pipeline().libraryVariables.vl_conn_string_warehouse"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "f3_warehouse",
+                "type": "Fail",
+                "dependsOn": [
+                    {
+                        "activity": "nbb_Warehouse",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "typeProperties": {
+                    "message": {
+                        "value": "@activity('nbb_Warehouse').output.error.message",
+                        "type": "Expression"
+                    },
+                    "errorCode": {
+                        "value": "warehouseError",
+                        "type": "Expression"
+                    }
+                }
+            },
+            {
+                "name": "sp_06_error_pipeline_log",
+                "description": "stored proc to write outcomes to audit log",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [
+                    {
+                        "activity": "f3_warehouse",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "storedProcedureName": "[dbo].[errorlog]",
+                    "storedProcedureParameters": {
+                        "ActivityName": {
+                            "value": {
+                                "value": "@activity('f3_warehouse')",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "Detail": {
+                            "value": {
+                                "value": "@concat('Env: ',pipeline().libraryVariables.vl_env,' / Product:',pipeline().libraryVariables.vl_Product,' / File:',pipeline().libraryVariables.vl_File_name,' / Feed:',pipeline().libraryVariables.vl_feed,' / FileDate: ',variables('v_today_start'),' / FileExt: ',pipeline().libraryVariables.file_ext,' / SourceLocation: ',pipeline().libraryVariables.vl_Source_Path)",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "ErrorCode": {
+                            "value": {
+                                "value": "@activity('f3_warehouse').output.errorCode",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "ErrorMessage": {
+                            "value": {
+                                "value": "@activity('f3_warehouse').output.Message",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "PipelineRunld": {
+                            "value": {
+                                "value": "@pipeline().RunId",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "Time_stamp": {
+                            "value": {
+                                "value": "@utcNow()",
+                                "type": "Expression"
+                            },
+                            "type": "Datetime"
+                        },
+                        "Pipeline_name": {
+                            "value": {
+                                "value": "@pipeline().PipelineName",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        }
+                    }
+                },
+                "connectionSettings": {
+                    "name": "2cb43bd6_2624_4fef_8b68_6c0d343fdd16",
+                    "properties": {
+                        "annotations": [],
+                        "type": "DataWarehouse",
+                        "typeProperties": {
+                            "endpoint": "@pipeline().libraryVariables.vl_sqlendpoint",
+                            "artifactId": "@pipeline().libraryVariables.vl_audit_warehouse_id",
+                            "workspaceId": "@pipeline().libraryVariables.vl_workspace_id"
+                        },
+                        "externalReferences": {
+                            "connection": "@pipeline().libraryVariables.vl_conn_string_warehouse"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "update_AuditFile_Success",
+                "description": "Script to update to Audit File",
+                "type": "Script",
+                "dependsOn": [
+                    {
+                        "activity": "chk_alreadyProcessed",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "connectionSettings": {
+                    "name": "1cdfdaef_020e_47a7_a948_2f6bacfdb9ac",
+                    "properties": {
+                        "annotations": [],
+                        "type": "DataWarehouse",
+                        "typeProperties": {
+                            "endpoint": "@pipeline().libraryVariables.vl_sqlendpoint",
+                            "artifactId": "@pipeline().libraryVariables.vl_audit_warehouse_id",
+                            "workspaceId": "@pipeline().libraryVariables.vl_workspace_id"
+                        },
+                        "externalReferences": {
+                            "connection": "@pipeline().libraryVariables.vl_conn_string_warehouse"
+                        }
+                    }
+                },
+                "typeProperties": {
+                    "scripts": [
+                        {
+                            "type": "Query",
+                            "text": {
+                                "value": "@concat(\r\n    'UPDATE [dbo].[audit_file_run] SET PipelineStatus = ''Completed'',\r\n     silver_gold_id_status = ''In Progress'',\r\n     EndTimeUTC = SYSDATETIME()\r\n     WHERE PipelineRunId = ''',\r\n    pipeline().RunId,\r\n    ''''\r\n)",
+                                "type": "Expression"
+                            }
+                        }
+                    ],
+                    "scriptBlockExecutionTimeout": "02:00:00"
+                }
+            },
+            {
+                "name": "update_AuditFile_fail",
+                "description": "upadte audit file fail",
+                "type": "Script",
+                "dependsOn": [
+                    {
+                        "activity": "chk_alreadyProcessed",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "connectionSettings": {
+                    "name": "34532f14_bdaf_434a_928a_2970314d2d4d",
+                    "properties": {
+                        "annotations": [],
+                        "type": "DataWarehouse",
+                        "typeProperties": {
+                            "endpoint": "@pipeline().libraryVariables.vl_sqlendpoint",
+                            "artifactId": "@pipeline().libraryVariables.vl_audit_warehouse_id",
+                            "workspaceId": "@pipeline().libraryVariables.vl_workspace_id"
+                        },
+                        "externalReferences": {
+                            "connection": "@pipeline().libraryVariables.vl_conn_string_warehouse"
+                        }
+                    }
+                },
+                "typeProperties": {
+                    "scripts": [
+                        {
+                            "type": "Query",
+                            "text": {
+                                "value": "@concat(\r\n    'UPDATE [dbo].[audit_file_run] SET PipelineStatus = ''Failed'',\r\n     silver_gold_id_status = ''Failed'',\r\n     EndTimeUTC = SYSDATETIME()\r\n     WHERE PipelineRunId = ''',\r\n    pipeline().RunId,\r\n    ''''\r\n)",
+                                "type": "Expression"
+                            }
+                        }
+                    ],
+                    "scriptBlockExecutionTimeout": "02:00:00"
+                }
+            },
+            {
+                "name": "sp_02_error_pipeline_log",
+                "description": "stored proc to write outcomes to audit log ",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [
+                    {
+                        "activity": "chk_alreadyProcessed",
+                        "dependencyConditions": [
+                            "Failed"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "storedProcedureName": "[dbo].[errorlog]",
+                    "storedProcedureParameters": {
+                        "ActivityName": {
+                            "value": {
+                                "value": "@activity('File_Processed')",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "Detail": {
+                            "value": {
+                                "value": "@concat('Env: ',pipeline().libraryVariables.vl_env,' / Product:',pipeline().libraryVariables.vl_Product,' / File:',pipeline().libraryVariables.vl_File_name,' / Feed:',pipeline().libraryVariables.vl_feed,' / FileDate: ',variables('v_today_start'),' / FileExt: ',pipeline().libraryVariables.file_ext,' / SourceLocation: ',pipeline().libraryVariables.vl_Source_Path)",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "ErrorCode": {
+                            "value": {
+                                "value": "@activity('File_count_chk').output.errorCode",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "ErrorMessage": {
+                            "value": {
+                                "value": "@activity('File_Processed').output.Message",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "PipelineRunId": {
+                            "value": {
+                                "value": "@pipeline().RunId",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "Time_stamp": {
+                            "value": {
+                                "value": "@utcNow()",
+                                "type": "Expression"
+                            },
+                            "type": "Datetime"
+                        },
+                        "Pipeline_name": {
+                            "value": {
+                                "value": "@pipeline().PipelineName",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        }
+                    }
+                },
+                "connectionSettings": {
+                    "name": "ab06c9e0_3503_4a54_a065_1000b1d46b78",
+                    "properties": {
+                        "annotations": [],
+                        "type": "DataWarehouse",
+                        "typeProperties": {
+                            "endpoint": "@pipeline().libraryVariables.vl_sqlendpoint",
+                            "artifactId": "@pipeline().libraryVariables.vl_audit_warehouse_id",
+                            "workspaceId": "@pipeline().libraryVariables.vl_workspace_id"
+                        },
+                        "externalReferences": {
+                            "connection": "@pipeline().libraryVariables.vl_conn_string_warehouse"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "script_update_auditFile",
+                "description": "Script to update Audit Run File SS complete",
+                "type": "Script",
+                "dependsOn": [
+                    {
+                        "activity": "nbb_Warehouse",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "connectionSettings": {
+                    "name": "5ba6685f_6ff4_4aab_a661_132c8fd2ed12",
+                    "properties": {
+                        "annotations": [],
+                        "type": "DataWarehouse",
+                        "typeProperties": {
+                            "endpoint": "@pipeline().libraryVariables.vl_sqlendpoint",
+                            "artifactId": "@pipeline().libraryVariables.vl_audit_warehouse_id",
+                            "workspaceId": "@pipeline().libraryVariables.vl_workspace_id"
+                        },
+                        "externalReferences": {
+                            "connection": "@pipeline().libraryVariables.vl_conn_string_warehouse"
+                        }
+                    }
+                },
+                "typeProperties": {
+                    "scripts": [
+                        {
+                            "type": "Query",
+                            "text": {
+                                "value": "@concat(\r\n    'UPDATE [dbo].[audit_file_run] SET silver_gold_id_status = ''Completed'',\r\n     EndTimeUTC = SYSDATETIME()\r\n     WHERE PipelineRunId = ''',\r\n    pipeline().RunId,\r\n    ''''\r\n)",
+                                "type": "Expression"
+                            }
+                        }
+                    ],
+                    "scriptBlockExecutionTimeout": "02:00:00"
+                }
+            },
+            {
+                "name": "update_PL_RunLog_End",
+                "description": "Store Procedure to update Audit Pipeline run log table",
+                "type": "SqlServerStoredProcedure",
+                "dependsOn": [
+                    {
+                        "activity": "nbb_Warehouse",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "storedProcedureName": "[dbo].[ updateplrunlog]",
+                    "storedProcedureParameters": {
+                        "PipelineRunId": {
+                            "value": {
+                                "value": "@pipeline().RunId",
+                                "type": "Expression"
+                            },
+                            "type": "String"
+                        },
+                        "PipelineCompletedSuccessfully": {
+                            "value": "1",
+                            "type": "Int16"
+                        }
+                    }
+                },
+                "connectionSettings": {
+                    "name": "48ab4bcc_febf_4b06_a1a4_0d4ad2a7e8c2",
+                    "properties": {
+                        "annotations": [],
+                        "type": "DataWarehouse",
+                        "typeProperties": {
+                            "endpoint": "@pipeline().libraryVariables.vl_sqlendpoint",
+                            "artifactId": "@pipeline().libraryVariables.vl_audit_warehouse_id",
+                            "workspaceId": "@pipeline().libraryVariables.vl_workspace_id"
+                        },
+                        "externalReferences": {
+                            "connection": "@pipeline().libraryVariables.vl_conn_string_warehouse"
+                        }
+                    }
+                }
+            },
+            {
+                "name": "sv_05_FilePath",
+                "description": "FullPath  product/Feed/yymm",
+                "type": "SetVariable",
+                "dependsOn": [
+                    {
+                        "activity": "update_AuditFile_Success",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "typeProperties": {
+                    "variableName": "v_fullpath_string",
+                    "value": {
+                        "value": "@concat(\r\n  'Files/',\r\n  pipeline().libraryVariables.vl_Product,\r\n  '/',\r\n  pipeline().libraryVariables.vl_feed,\r\n  '/',\r\n  variables('v_yearMonth'),\r\n  '/',\r\n  variables('v_FullFilename')\r\n)\r\n",
+                        "type": "Expression"
+                    }
+                }
+            }
+        ],
+        "parameters": {
+            "p_days_offset": {
+                "type": "string",
+                "defaultValue": "0"
+            }
+        },
+        "variables": {
+            "v_today_start": {
+                "type": "String"
+            },
+            "v_Filecount": {
+                "type": "Integer"
+            },
+            "v_yearMonth": {
+                "type": "String"
+            },
+            "v_Filename": {
+                "type": "String"
+            },
+            "v_FullFilename": {
+                "type": "String"
+            },
+            "v_date": {
+                "type": "String"
+            },
+            "v_fullpath_string": {
+                "type": "String"
+            }
+        },
+        "libraryVariables": {
+            "vl_conn_string_lakehouse": {
+                "type": "String",
+                "variableName": "vl_conn_string_lakehouse",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_conn_string_warehouse": {
+                "type": "String",
+                "variableName": "vl_conn_string_warehouse",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_workspace_id": {
+                "type": "String",
+                "variableName": "vl_workspace_id",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_sqlendpoint": {
+                "type": "String",
+                "variableName": "vl_sqlendpoint",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_audit_warehouse_id": {
+                "type": "String",
+                "variableName": "vl_audit_warehouse_id",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_Source_Path": {
+                "type": "String",
+                "variableName": "vl_Source_Path",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_File_name": {
+                "type": "String",
+                "variableName": "vl_File_name",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_source_lakehouse_id": {
+                "type": "String",
+                "variableName": "vl_source_lakehouse_id",
+                "libraryName": "dev_val_lib"
+            },
+            "file_ext": {
+                "type": "String",
+                "variableName": "vl_file_ext",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_Product": {
+                "type": "String",
+                "variableName": "vl_Product",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_feed": {
+                "type": "String",
+                "variableName": "vl_feed",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_nbb_schema": {
+                "type": "String",
+                "variableName": "vl_nbb_schema",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_schema_path": {
+                "type": "String",
+                "variableName": "vl_schema_path",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_schema_file_name": {
+                "type": "String",
+                "variableName": "vl_schema_file_name",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_nbs_transformed": {
+                "type": "String",
+                "variableName": "vl_nbs_transformed",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_target_table_name": {
+                "type": "String",
+                "variableName": "vl_target_table_name",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_silver_lakehouse_id": {
+                "type": "String",
+                "variableName": "vl_silver_lakehouse_id",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_silver_lakehouse_name": {
+                "type": "String",
+                "variableName": "vl_silver_lakehouse_name",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_nbs_warehouse": {
+                "type": "String",
+                "variableName": "vl_nbs_warehouse",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_env": {
+                "type": "String",
+                "variableName": "vl_env",
+                "libraryName": "dev_val_lib"
+            },
+            "vl_bronze_lakehouse_id": {
+                "type": "String",
+                "variableName": "vl_bronze_lakehouse_id",
+                "libraryName": "dev_val_lib"
+            }
+        },
+        "lastModifiedByObjectId": "187fa221-78ba-48d0-b8d3-47e854475a17",
+        "lastPublishTime": "2026-06-11T23:08:07Z"
+    }
+}
