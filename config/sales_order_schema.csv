@@ -1,0 +1,12 @@
+column_name,data_type
+OrderID,VARCHAR
+OrderDate,DATE
+CustomerID,VARCHAR
+CustomerName,VARCHAR
+ProductCategory,VARCHAR
+ProductName,VARCHAR
+Quantity,INT
+UnitPrice,INT
+Region,VARCHAR
+SalesChannel,VARCHAR
+SalesAmount,INT
