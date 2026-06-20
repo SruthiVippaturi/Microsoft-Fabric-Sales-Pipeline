@@ -22,33 +22,6 @@ Power BI Dashboard
 
 ---
 
-## Project Structure
-
-```
-Microsoft-Fabric-Sales-Pipeline/
-│
-├── notebooks/
-│   ├── Schema.ipynb           # Schema validation notebook
-│   ├── Transformed.ipynb      # PySpark transformation notebook
-│   └── Warehouse.ipynb        # SQL warehouse load notebook
-│
-├── pipeline/
-│   └── PI_Product.json        # Pipeline definition (JSON)
-│
-├── config/
-│   └── sales_order_schema.csv # Schema definition file
-│
-├── screenshots/
-│   ├── 01_pipeline_success.png
-│   ├── 02_workspace_overview.png
-│   ├── 03_variable_library.png
-│   ├── 04_silver_lakehouse.png
-│   ├── 05_warehouse_data.png
-│   ├── 06_audit_log.png
-│   └── 07_powerbi_dashboard.png
-│
-└── README.md
-```
 
 ---
 
